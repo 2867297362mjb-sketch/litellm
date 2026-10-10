@@ -800,12 +800,7 @@ jobs:
 
           - shard: mcp-oauth
             test-path: |-
-              tests/unit/proxy/_experimental/mcp_server/auth/test_user_api_key_auth_mcp.py::test_process_mcp_request_marks_only_expected_credential_challenges
-              tests/unit/proxy/_experimental/mcp_server/auth/test_user_api_key_auth_mcp.py::test_cold_start_fallback_classifies_structural_challenges
-              tests/unit/proxy/_experimental/mcp_server/auth/test_user_api_key_auth_mcp.py::TestMCPPassthroughColdStartAdmission::test_cold_start_propagates_non_401_http_error
-              tests/unit/proxy/_experimental/mcp_server/auth/test_user_api_key_auth_mcp.py::TestMCPPassthroughColdStartAdmission::test_cold_start_propagates_non_auth_proxy_exception
-              tests/unit/proxy/_experimental/mcp_server/auth/test_user_api_key_auth_mcp.py::TestMCPPassthroughColdStartAdmission::test_cold_start_allows_401_for_path_passthrough_target
-              tests/unit/proxy/_experimental/mcp_server/auth/test_user_api_key_auth_mcp.py::TestMCPPassthroughColdStartAdmission::test_cold_start_allows_proxy_exception_401_for_path_target
+              tests/unit/proxy/_experimental/mcp_server/auth/test_user_api_key_auth_mcp.py
               tests/unit/proxy/_experimental/mcp_server/test_discoverable_endpoints.py
               tests/unit/proxy/_experimental/mcp_server/test_mcp_server_manager.py
               tests/unit/proxy/_experimental/mcp_server/test_db_credentials.py
