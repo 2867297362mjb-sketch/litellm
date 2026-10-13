@@ -736,6 +736,11 @@ class ProxyInitializationHelpers:
     _maybe_setup_prometheus_multiproc_dir = maybe_setup_prometheus_multiproc_dir
 
 
+def control_plane_requested(control_plane: bool, skip_server_startup: bool) -> bool:
+    """A migration job inherits the deployment's LITELLM_CONTROL_PLANE, so --skip_server_startup must win."""
+    return control_plane and not skip_server_startup
+
+
 @click.command()
 @click.argument("cli_args", nargs=-1)
 @click.option("--host", default="0.0.0.0", help="Host for the server to listen on.", envvar="HOST")
@@ -1019,6 +1024,17 @@ class ProxyInitializationHelpers:
     envvar="USE_V2_MIGRATION_RESOLVER",
 )
 @click.option(
+    "--control-plane",
+    "control_plane",
+    is_flag=True,
+    default=False,
+    envvar="LITELLM_CONTROL_PLANE",
+    help=(
+        "Serve the global control plane API instead of the proxy, on the same image. Enterprise only, "
+        "refuses to start without LITELLM_LICENSE. Configure with CONTROL_PLANE_* env vars."
+    ),
+)
+@click.option(
     "--use_legacy_migration_resolver",
     is_flag=True,
     default=False,
@@ -1050,8 +1066,8 @@ class ProxyInitializationHelpers:
 )
 def run_server(
     cli_args,
-    host,
-    port,
+    host: str,
+    port: int,
     api_base,
     api_version,
     model,
@@ -1100,6 +1116,7 @@ def run_server(
     use_legacy_migration_resolver: bool,
     reload: bool,
     prometheus_metrics_port: int | None,
+    control_plane: bool,
 ):
     if cli_args:
         if cli_args == ("xai-oauth", "login"):
@@ -1117,6 +1134,11 @@ def run_server(
         from litellm.setup_wizard import run_setup_wizard
 
         run_setup_wizard()
+        return
+    if control_plane_requested(control_plane, skip_server_startup):
+        from litellm.proxy.control_plane.main import serve
+
+        serve(host=host, port=port, workers=num_workers)
         return
 
     args: Final = locals()

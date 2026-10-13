@@ -7,6 +7,7 @@ from typing import Final
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import click
+from click.testing import CliRunner
 import fastapi
 import pytest
 
@@ -3615,3 +3616,29 @@ class TestValidateConfigFlag:
         assert result.exit_code == 0, f"exit_code={result.exit_code}, output={result.output}"
         assert "config OK" in result.output
         mock_popen.assert_not_called()
+
+
+class TestControlPlaneFlag:
+    """`--control-plane` swaps the app served from the existing image, but migration jobs must still win."""
+
+    @patch("litellm.proxy.control_plane.main.serve")
+    def test_control_plane_flag_serves_the_control_plane_with_the_worker_count(self, mock_serve):
+        from litellm.proxy.proxy_cli import run_server
+
+        result = CliRunner().invoke(run_server, ["--control-plane", "--port", "8100", "--num_workers", "3"])
+        assert result.exit_code == 0, result.output
+        mock_serve.assert_called_once()
+        assert mock_serve.call_args.kwargs["port"] == 8100
+        assert mock_serve.call_args.kwargs["workers"] == 3
+
+    @pytest.mark.parametrize(
+        ("control_plane", "skip_server_startup", "expected"),
+        [(True, False, True), (True, True, False), (False, False, False), (False, True, False)],
+    )
+    def test_skip_server_startup_wins_over_an_inherited_control_plane_flag(
+        self, control_plane: bool, skip_server_startup: bool, expected: bool
+    ):
+        """A migration job shares the deployment's env, LITELLM_CONTROL_PLANE=true must not turn it into a server."""
+        from litellm.proxy.proxy_cli import control_plane_requested
+
+        assert control_plane_requested(control_plane, skip_server_startup) is expected
