@@ -12,6 +12,7 @@ from litellm.llms.custom_httpx.http_handler import (
     AsyncHTTPHandler,
     get_async_httpx_client,  # pyright: ignore[reportUnknownVariableType]  # params is an untyped dict upstream
 )
+from litellm.proxy.control_plane.audit.log import AuditLog, build_audit_log
 from litellm.proxy.control_plane.auth.jwt import JwksKeyLookup, SessionTokenCodec, TokenVerifier, build_token_verifier
 from litellm.proxy.control_plane.auth.login import LoginService
 from litellm.proxy.control_plane.auth.rbac import (
@@ -40,6 +41,7 @@ class Container:
     registry: DataplaneRegistry
     dataplane_client: DataplaneClient
     fanout: Fanout
+    audit_log: AuditLog
 
 
 class InvalidRolePolicy(ValueError):
@@ -142,4 +144,5 @@ def build_container(
             retry=RetryPolicy(attempts=settings.dataplane_retry_attempts),
         ),
         fanout=Fanout(concurrency=settings.fanout_concurrency),
+        audit_log=build_audit_log(settings.audit_capacity),
     )
