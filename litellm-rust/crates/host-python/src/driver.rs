@@ -19,7 +19,7 @@ use litellm_host::{
 };
 
 use crate::PythonHostCalls;
-use crate::handle::{Execution, ExecutionBody, ExecutionStep, PythonLifecycle, Suspension};
+use crate::handle::{Execution, ExecutionBody, ExecutionStep, StepTypes, Suspension};
 use crate::hooks::{PythonCallEvent, PythonCallHooks};
 use crate::native::{NativeMachine, NativePoll};
 use crate::task::{Answer, PythonTask, Yielded};
@@ -38,15 +38,15 @@ type Body = Coroutine<Yielded, PyResult<Py<PyAny>>>;
 
 pub struct CallOptions {
     pub asynchronous: bool,
-    pub lifecycle: PythonLifecycle,
+    pub steps: StepTypes,
     pub observers: Option<ObservationSender>,
 }
 
 impl CallOptions {
-    pub fn new(asynchronous: bool, lifecycle: PythonLifecycle) -> Self {
+    pub fn new(asynchronous: bool, steps: StepTypes) -> Self {
         Self {
             asynchronous,
-            lifecycle,
+            steps,
             observers: None,
         }
     }
@@ -610,25 +610,10 @@ where
             .run()
         }
     });
-    let mut driver = Driver {
+    let driver = Driver {
         body: Mutex::new(body),
         reply: None,
         shared,
     };
-    if options.asynchronous {
-        return Execution::new(driver, options.lifecycle)
-            .into_coroutine(py)
-            .map(Bound::unbind);
-    }
-    match driver.resume(None)? {
-        ExecutionStep::Return(value) => Ok(value),
-        ExecutionStep::Suspended(Suspension::StreamOpen(head)) => {
-            Execution::suspended(driver, options.lifecycle)
-                .into_sync_stream(py, head)
-                .map(Bound::unbind)
-        }
-        ExecutionStep::Suspended(Suspension::Await(_) | Suspension::StreamChunk(_)) => {
-            Err(PyRuntimeError::new_err("sync call suspended"))
-        }
-    }
+    Py::new(py, Execution::new(driver, options.steps)).map(Py::into_any)
 }

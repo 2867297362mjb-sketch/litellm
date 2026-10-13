@@ -17,7 +17,9 @@ use pyo3::{
     types::{PyDict, PyTuple},
 };
 use rstest::{fixture, rstest};
-use support::{Interpreter, Log, OpScript, binding, call_options, interpreter, success_machine};
+use support::{
+    Interpreter, Log, OpScript, binding, call_options, handed, interpreter, success_machine,
+};
 
 struct ScriptHooks {
     object: Py<PyAny>,
@@ -351,14 +353,7 @@ fn terminal_failure_does_not_skip_later_hooks(
         };
         finish(hooks.on_event(&RunToCompletion, event)).unwrap();
         locals
-            .set_item(
-                "selected",
-                if failed {
-                    error.into_any()
-                } else {
-                    response
-                },
-            )
+            .set_item("selected", if failed { error.into_any() } else { response })
             .unwrap();
         py.run(
             c"
@@ -469,13 +464,17 @@ second = Hooks('b', invoke)
         )
         .unwrap();
         let machine = success_machine();
-        let call = run_call(
+        let call = handed(
             py,
-            move |_, _, request| Ok(machine(request)),
-            binding(&Log::default(), OpScript::Answer),
-            chain(py, &scripts, true),
-            PyDict::new(py).unbind(),
-            call_options(true),
+            run_call(
+                py,
+                move |_, _, request| Ok(machine(request)),
+                binding(&Log::default(), OpScript::Answer),
+                chain(py, &scripts, true),
+                PyDict::new(py).unbind(),
+                call_options(true),
+            ),
+            true,
         )
         .unwrap();
         locals.set_item("call", call).unwrap();
