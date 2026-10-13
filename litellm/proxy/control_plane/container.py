@@ -23,6 +23,7 @@ from litellm.proxy.control_plane.auth.rbac import (
     build_policy,
     parse_role_definition,
 )
+from litellm.proxy.control_plane.common.fanout import Fanout
 from litellm.proxy.control_plane.dataplanes.client import DataplaneClient, HttpTransport, RetryPolicy
 from litellm.proxy.control_plane.dataplanes.credentials import TokenExchanger, http_token_exchanger
 from litellm.proxy.control_plane.dataplanes.registry import DataplaneRegistry, build_registry
@@ -38,6 +39,7 @@ class Container:
     login_service: LoginService
     registry: DataplaneRegistry
     dataplane_client: DataplaneClient
+    fanout: Fanout
 
 
 class InvalidRolePolicy(ValueError):
@@ -139,4 +141,5 @@ def build_container(
             timeout_seconds=settings.dataplane_timeout_seconds,
             retry=RetryPolicy(attempts=settings.dataplane_retry_attempts),
         ),
+        fanout=Fanout(concurrency=settings.fanout_concurrency),
     )
