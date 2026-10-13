@@ -1430,6 +1430,54 @@ async def test_health_services_endpoint_datadog_llm_observability():
 
 
 @pytest.mark.asyncio
+async def test_health_services_endpoint_tests_any_known_callback_configured_via_callbacks():
+    """A logger wired through litellm_settings.callbacks (zerobus) gets the mock request, not a 400."""
+    acompletion: Final = AsyncMock(return_value=MagicMock())
+    with (
+        patch("litellm.success_callback", []),
+        patch("litellm.callbacks", ["zerobus"]),
+        patch("litellm.acompletion", acompletion),
+    ):
+        result = await health_services_endpoint(service="zerobus")
+
+    assert result == {"status": "success", "message": "Mock LLM request made - check zerobus."}
+    acompletion.assert_awaited_once()
+    assert acompletion.await_args.kwargs["user"] == "litellm:/health/services"
+
+
+@pytest.mark.asyncio
+async def test_health_services_endpoint_keeps_dedicated_check_for_logger_configured_via_callbacks():
+    """callbacks: [sqs] still runs the SQS health check instead of the generic mock request."""
+    acompletion: Final = AsyncMock(return_value=MagicMock())
+    with (
+        patch("litellm.success_callback", []),
+        patch("litellm.callbacks", ["sqs"]),
+        patch("litellm.acompletion", acompletion),
+        patch("litellm.integrations.sqs.SQSLogger") as MockSQSLogger,
+    ):
+        mock_instance = MagicMock()
+        mock_instance.async_health_check = AsyncMock(return_value={"status": "healthy", "error_message": ""})
+        MockSQSLogger.return_value = mock_instance
+        result = await health_services_endpoint(service="sqs")
+
+    assert result == {"status": "healthy", "message": ""}
+    acompletion.assert_not_awaited()
+    mock_instance.async_health_check.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_health_services_endpoint_rejects_known_but_unconfigured_callback():
+    """zerobus is a known logger, but with nothing configured the test is a 400, not an empty 200."""
+    from litellm.proxy._types import ProxyException
+
+    with patch("litellm.success_callback", []), patch("litellm.callbacks", []), pytest.raises(ProxyException) as exc:
+        await health_services_endpoint(service="zerobus")
+
+    assert exc.value.code == "400"
+    assert "not configured as a callback" in str(exc.value.message)
+
+
+@pytest.mark.asyncio
 async def test_health_services_endpoint_rejects_unknown_service():
     """
     Verify that an unknown service name is rejected with a 400 error.
