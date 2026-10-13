@@ -61,13 +61,11 @@ async def test_unknown_agent_has_no_ceiling():
 
 @pytest.mark.asyncio
 async def test_ceiling_is_the_union_of_every_attached_group():
-    load_agent, load_group = _loaders(
-        _agent(["g1", "g2"]),
-        {
-            "g1": _group("g1", models=("gpt-5",), mcp_servers=("mcp-a",), agents=("agent-b",)),
-            "g2": _group("g2", models=("claude-sonnet",), mcp_servers=("mcp-b",), agents=("agent-c",)),
-        },
-    )
+    groups: Final = {
+        "g1": _group("g1", models=("gpt-5",), mcp_servers=("mcp-a",), agents=("agent-b",)),
+        "g2": _group("g2", models=("claude-sonnet",), mcp_servers=("mcp-b",), agents=("agent-c",)),
+    }
+    load_agent, load_group = _loaders(_agent(["g1", "g2"]), groups)
 
     ceiling: Final = await resolve_agent_access_group_ceiling("agent-1", load_agent, load_group)
 
@@ -76,12 +74,14 @@ async def test_ceiling_is_the_union_of_every_attached_group():
         models=frozenset({"gpt-5", "claude-sonnet"}),
         mcp_server_ids=frozenset({"mcp-a", "mcp-b"}),
         agent_ids=frozenset({"agent-b", "agent-c"}),
+        access_groups=(groups["g1"], groups["g2"]),
     )
 
 
 @pytest.mark.asyncio
 async def test_unloadable_group_contributes_nothing_but_the_ceiling_still_applies():
-    load_agent, load_group = _loaders(_agent(["g1", "gone"]), {"g1": _group("g1", models=("gpt-5",))})
+    g1: Final = _group("g1", models=("gpt-5",))
+    load_agent, load_group = _loaders(_agent(["g1", "gone"]), {"g1": g1})
 
     ceiling: Final = await resolve_agent_access_group_ceiling("agent-1", load_agent, load_group)
 
@@ -90,6 +90,7 @@ async def test_unloadable_group_contributes_nothing_but_the_ceiling_still_applie
         models=frozenset({"gpt-5"}),
         mcp_server_ids=frozenset(),
         agent_ids=frozenset(),
+        access_groups=(g1,),
     )
 
 
@@ -109,7 +110,8 @@ async def test_only_unloadable_groups_is_an_empty_ceiling_not_unrestricted():
 async def test_default_agent_loader_reads_the_attached_groups_from_the_registry():
     from litellm.proxy.agent_endpoints.agent_registry import global_agent_registry
 
-    _, load_group = _loaders(None, {"g1": _group("g1", models=("gpt-5",))})
+    g1: Final = _group("g1", models=("gpt-5",))
+    _, load_group = _loaders(None, {"g1": g1})
     global_agent_registry.register_agent(_agent(["g1"]))
     try:
         ceiling: Final = await resolve_agent_access_group_ceiling("agent-1", load_access_group=load_group)
@@ -117,7 +119,11 @@ async def test_default_agent_loader_reads_the_attached_groups_from_the_registry(
         global_agent_registry.deregister_agent("agent")
 
     assert ceiling == AgentAccessGroupCeiling(
-        access_group_ids=("g1",), models=frozenset({"gpt-5"}), mcp_server_ids=frozenset(), agent_ids=frozenset()
+        access_group_ids=("g1",),
+        models=frozenset({"gpt-5"}),
+        mcp_server_ids=frozenset(),
+        agent_ids=frozenset(),
+        access_groups=(g1,),
     )
 
 
@@ -159,7 +165,9 @@ async def test_authoritative_group_ceiling_propagates_policy_outages(
 
     database: Final = MagicMock()
     database.db.litellm_accessgrouptable.find_unique = AsyncMock(side_effect=RuntimeError("database unavailable"))
-    database.writer_db.litellm_accessgrouptable.find_unique = AsyncMock(side_effect=RuntimeError("database unavailable"))
+    database.writer_db.litellm_accessgrouptable.find_unique = AsyncMock(
+        side_effect=RuntimeError("database unavailable")
+    )
     monkeypatch.setattr(proxy_server, "prisma_client", database)
     monkeypatch.setattr(proxy_server, "user_api_key_cache", UserApiKeyCache())
     if strict:

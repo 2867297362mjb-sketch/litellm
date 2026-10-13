@@ -24979,6 +24979,10 @@ export interface components {
             assigned_team_ids?: string[] | null;
             /** Description */
             description?: string | null;
+            /** Mcp Tool Permissions */
+            mcp_tool_permissions?: {
+                [key: string]: string[];
+            } | null;
         };
         /** AccessGroupInfo */
         AccessGroupInfo: {
@@ -25035,6 +25039,10 @@ export interface components {
             created_by?: string | null;
             /** Description */
             description?: string | null;
+            /** Mcp Tool Permissions */
+            mcp_tool_permissions?: {
+                [key: string]: string[];
+            } | null;
             /**
              * Updated At
              * Format: date-time
@@ -25059,6 +25067,10 @@ export interface components {
             assigned_team_ids?: string[] | null;
             /** Description */
             description?: string | null;
+            /** Mcp Tool Permissions */
+            mcp_tool_permissions?: {
+                [key: string]: string[];
+            } | null;
         };
         /**
          * AcknowledgedSafetyCheck

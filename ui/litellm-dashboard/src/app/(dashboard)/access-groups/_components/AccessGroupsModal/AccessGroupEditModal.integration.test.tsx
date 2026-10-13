@@ -44,6 +44,7 @@ const accessGroup: AccessGroupResponse = {
   description: "Engineers",
   access_model_names: ["gpt-4"],
   access_mcp_server_ids: ["srv-1"],
+  mcp_tool_permissions: { "srv-1": ["read_file"] },
   access_agent_ids: ["agent-1"],
   assigned_team_ids: [],
   assigned_key_ids: [],

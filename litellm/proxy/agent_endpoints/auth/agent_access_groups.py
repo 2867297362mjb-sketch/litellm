@@ -25,6 +25,7 @@ class AgentAccessGroupCeiling:
     models: frozenset[str]
     mcp_server_ids: frozenset[str]
     agent_ids: frozenset[str]
+    access_groups: tuple[LiteLLM_AccessGroupTable, ...] = ()
 
 
 CeilingResolver: TypeAlias = Callable[[str], Awaitable[AgentAccessGroupCeiling | None]]
@@ -85,6 +86,7 @@ async def resolve_agent_access_group_ceiling(
         models=frozenset(model for group in groups for model in group.access_model_names),
         mcp_server_ids=frozenset(server_id for group in groups for server_id in group.access_mcp_server_ids),
         agent_ids=frozenset(target_id for group in groups for target_id in group.access_agent_ids),
+        access_groups=groups,
     )
 
 
